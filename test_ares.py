@@ -2,6 +2,8 @@ import os
 import shutil
 import subprocess
 
+from pathlib import Path
+
 
 def test_polishing():
     p = subprocess.Popen(
@@ -13,6 +15,24 @@ def test_polishing():
 
 
 import polisher
+
+
+def test_pilon_polish():
+    pipeline = polisher.PolishPipeline(
+        root_dir="polishing",
+        drafts=[Path("test/drafts/assembly.fasta")],
+        long_reads="test/long.fasta",
+        short_reads=["test/r1.fasta", "test/r2.fasta"],
+        threads=25,
+        lineage="fungi_odb10",
+    )
+    Path("polishing/assembly").mkdir(exist_ok=True, parents=True)
+    busco_result = pipeline.pilon_polish(
+        "polishing/assembly", "test/drafts/assembly.fasta"
+    )
+    assert busco_result.assembly
+    assert busco_result.busco_score > 30
+    assert busco_result.busco_path
 
 
 def test_is_improved():
@@ -36,14 +56,17 @@ def test_is_first():
 
 
 def test_run_busco():
+    root_dir = "busco_test"
+    Path(root_dir).mkdir(exist_ok=True)
+
+    out = f"{root_dir}/busco_out"
     assembly = "test/drafts/assembly.fasta"
     lineage = "basidiomycota_odb10"
-    out = "busco_test"
     if os.path.exists(out):
         shutil.rmtree(out, ignore_errors=True)
 
     result = polisher.run_busco(assembly, out, lineage)
     assert os.path.exists(out)
-    assert result.contigs
+    assert result.assembly
     assert result.busco_score
     assert result.busco_path
