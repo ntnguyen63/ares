@@ -62,7 +62,7 @@ def run_busco(assembly: str, outdir: str, lineage: str):
 
     # no slashes allowed in -o parameter so put stem as output
     stem = outdir.stem
-    stdout, stderr = subprocess.run(
+    subprocess.run(
         f"busco -m genome -i {assembly} -o {stem} -l {lineage} --cpu 30",
         shell=True,
     )
