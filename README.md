@@ -10,7 +10,7 @@ chmod +x ares.py
 ```
 Lastly, add ares directory to your $PATH to make ares.py globally available. For example in your .bashrc file:
 ```
-PATH="$PATH:/path/to/ares"
+export PATH="$PATH:/path/to/ares"
 ```
 
 ## Help
