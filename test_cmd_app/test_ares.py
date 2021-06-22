@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 
-def test_areas():
+def test_ares():
     p = subprocess.Popen(
         "python ares.py test_data/drafts test_data/long.fastq test_data/r1.fastq test_data/r2.fastq fungi_odb10 30".split()
     )
