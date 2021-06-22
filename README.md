@@ -1,2 +1,2 @@
 # ares
-Polishing pipline using racon, medaka, and pilon. 
+Polishing pipeline using racon, medaka, and pilon. 
