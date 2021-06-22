@@ -11,7 +11,7 @@ class BuscoResult:
         *,
         assembly: str,
         busco_path: Optional[str] = None,
-        busco_score: Optional[float] = None,
+        busco_score: float = -1,
         lineage: Optional[str] = None,
     ):
         self.assembly = assembly
@@ -32,22 +32,14 @@ def initialize_busco_result(assembly: Union[str, BuscoResult]) -> BuscoResult:
 
 
 def is_improved(*, new_busco: BuscoResult, old_busco: BuscoResult):
-    if not new_busco.busco_score:
-        raise Exception(
-            "busco result for {new_busco.assembly} does not have a score"
-        )
-    elif not old_busco.busco_score:
-        raise Exception(
-            "busco result for {old_busco.assembly} does not have a score"
-        )
-    elif new_busco.busco_score > old_busco.busco_score:
+    if new_busco.busco_score > old_busco.busco_score:
         return True
     else:
         return False
 
 
 def is_first(busco_result: BuscoResult):
-    if None in (busco_result.busco_score, busco_result.busco_path):
+    if busco_result.busco_score < 0 or busco_result.busco_path is None:
         return True
     else:
         return False
@@ -93,3 +85,41 @@ def run_busco(assembly: str, outdir: str, lineage: str):
         busco_path=outdir,
         lineage=lineage,
     )
+
+
+def summarize_busco_runs(
+    *, outdir: str, best: BuscoResult, busco_results: List[BuscoResult]
+):
+    if not Path(outdir).is_dir():
+        raise Exception(f"{outdir} does not exist")
+
+    best_polish = max(
+        busco_results,
+        key=lambda busco_result: busco_result.busco_score,
+    )
+    best_dir = f"{outdir}/best"
+    subprocess.run(f"mkdir -p {best_dir}", shell=True)
+    subprocess.run(
+        f"cp {best_polish.assembly} {best_dir}/polish.fasta", shell=True
+    )
+    subprocess.run(f"cp -r {best_polish.busco_path} {best_dir}/", shell=True)
+    # create tsv file with results
+    with open(f"{outdir}/results.tsv", "w") as results:
+        headers: List[str] = [
+            "assembly",
+            "lineage",
+            "busco_score",
+            "busco_path",
+            "is_best",
+        ]
+        headers_as_str: str = "\t".join(headers)
+        results.write(f"{headers_as_str}\n")
+        for busco_result in busco_results:
+            row = [
+                str(busco_result.__dict__[header])
+                for header in headers
+                if header != "is_best"
+            ]
+            row.append("True" if busco_result is best else "False")
+            row_as_str = "\t".join(row)
+            results.write(f"{row_as_str}\n")
