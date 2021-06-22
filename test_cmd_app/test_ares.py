@@ -7,8 +7,9 @@ from pathlib import Path
 
 def test_areas():
     p = subprocess.Popen(
-        "python ares.py ../test_data/drafs ../test_data/long.fasta ../test_data/r1.fastq ../test_data/r2.fastq".split()
+        "python ares.py test_data/drafts test_data/long.fastq test_data/r1.fastq test_data/r2.fastq fungi_odb10 30".split()
     )
     stdout, stderr = p.communicate()
     assert p.returncode == 0
-    assert os.path.exists("best/polish.fasta")
+    assert os.path.exists("ares")
+    assert os.path.exists("ares/best/polish.fasta")
