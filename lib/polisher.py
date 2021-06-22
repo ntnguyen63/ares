@@ -114,7 +114,7 @@ class PolishPipeline:
                 out=sorted_out,
             )
             subprocess.run(
-                f"pilon --genome {busco_result.assembly} --frags {sorted_aln} --threads {self.threads} --outdir {pilon_out}",
+                f"pilon --fix all,amb --genome {busco_result.assembly} --frags {sorted_aln} --threads {self.threads} --outdir {pilon_out}",
                 shell=True,
             )
             # some clean up
