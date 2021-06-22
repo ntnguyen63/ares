@@ -32,7 +32,15 @@ def initialize_busco_result(assembly: Union[str, BuscoResult]) -> BuscoResult:
 
 
 def is_improved(*, new_busco: BuscoResult, old_busco: BuscoResult):
-    if new_busco.busco_score > old_busco.busco_score:
+    if not new_busco.busco_score:
+        raise Exception(
+            "busco result for {new_busco.assembly} does not have a score"
+        )
+    elif not old_busco.busco_score:
+        raise Exception(
+            "busco result for {old_busco.assembly} does not have a score"
+        )
+    elif new_busco.busco_score > old_busco.busco_score:
         return True
     else:
         return False
@@ -59,21 +67,23 @@ def get_busco_score(short_summary):
 
 
 def run_busco(assembly: str, outdir: str, lineage: str):
-    outdir = Path(outdir)
+    outdir_path = Path(outdir)
 
     # no slashes allowed in -o parameter so put stem as output
-    stem = outdir.stem
+    stem = outdir_path.stem
     subprocess.run(
         f"busco -m genome -i {assembly} -o {stem} -l {lineage} --cpu 30",
         shell=True,
     )
 
-    if "/" in outdir.as_posix():
-        subprocess.run(f"mv {stem} {outdir}", shell=True)
+    if "/" in outdir_path.as_posix():
+        subprocess.run(f"mv {stem} {outdir_path}", shell=True)
 
-    path = list(outdir.glob("*/short_summary.txt"))
+    path = list(outdir_path.glob("*/short_summary.txt"))
     if not path:
-        raise Exception("cannot find short_summary.txt")
+        raise Exception(
+            f"cannot find short_summary.txt on busco run with {assembly}"
+        )
 
     short_summary = path[0]
     busco_score = get_busco_score(short_summary)
