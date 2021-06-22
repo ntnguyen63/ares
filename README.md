@@ -38,7 +38,7 @@ Options:
   --help                Show this message and exit.
 ```
 
-## Test
+## Testing
 ```
 pytest
 ```
