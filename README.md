@@ -8,7 +8,10 @@ cd ares
 mamba env create --file ares-env.yaml 
 chmod +x ares.py
 ```
-Lastly, Add ares directory to your $PATH to make ares.py globally available.
+Lastly, Add ares directory to your $PATH to make ares.py globally available. For example in your .bashrc file:
+```
+PATH="$PATH:/path/to/ares"
+```
 
 ## Help
 ```
