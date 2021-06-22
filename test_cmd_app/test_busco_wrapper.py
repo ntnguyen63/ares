@@ -4,20 +4,42 @@ import subprocess
 
 from pathlib import Path
 
-from ..busco_wrapper import run_busco, is_improved, is_first, BuscoResult
+from ..lib.busco_wrapper import (
+    run_busco,
+    is_improved,
+    is_first,
+    BuscoResult,
+    summarize_busco_runs,
+)
+
+better = BuscoResult(
+    assembly="test_data/drafts/assembly.fasta",
+    busco_score=89,
+    busco_path="test/busco/path/a1.fasta",
+    lineage="fungi_odb10",
+)
+worst = BuscoResult(
+    assembly="test_data/drafts/assembly.fasta",
+    busco_score=70,
+    busco_path="test/busco/path/a2.fasta",
+    lineage="fungi_odb10",
+)
+
+
+def test_summarize_busco_runs():
+    outdir = "summarize_busco_runs_test"
+    Path(outdir).mkdir(exist_ok=True)
+    summarize_busco_runs(
+        outdir=outdir,
+        best=better,
+        busco_results=[better, worst],
+    )
+    assert os.path.exists(outdir)
+    assert os.path.exists(f"{outdir}/results.tsv")
+    assert os.path.exists(f"{outdir}/best/polish.fasta")
 
 
 def test_is_improved():
-    better = BuscoResult(
-        assembly="test_data/drafts/assembly.fasta",
-        busco_score=89,
-        busco_path=None,
-    )
-    worst = BuscoResult(
-        assembly="test_data/drafts/assembly.fasta",
-        busco_score=70,
-        busco_path=None,
-    )
     assert is_improved(new_busco=better, old_busco=worst)
     assert not is_improved(new_busco=worst, old_busco=better)
 
