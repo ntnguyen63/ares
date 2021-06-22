@@ -11,5 +11,5 @@ def test_areas():
     )
     stdout, stderr = p.communicate()
     assert p.returncode == 0
-    assert os.path.exists("ares")
-    assert os.path.exists("ares/best/polish.fasta")
+    assert os.path.exists("ares_out")
+    assert os.path.exists("ares_out/best/polish.fasta")
