@@ -4,7 +4,7 @@ import subprocess
 
 from pathlib import Path
 
-from ..polisher import PolishPipeline, create_sorted_aln
+from ..lib.polisher import PolishPipeline, create_sorted_aln
 
 pipeline = PolishPipeline(
     root_dir="polishing",
@@ -23,6 +23,16 @@ def test_polish():
     assert os.path.exists(busco_result.assembly)
     assert busco_result.busco_score
     assert busco_result.busco_path
+
+
+def test_medaka_polish():
+    Path("polishing/assembly").mkdir(exist_ok=True, parents=True)
+    busco_result = pipeline.medaka_polish(
+        "polishing/assembly", "test_data/drafts/assembly.fasta"
+    )
+    assert os.path.exists(busco_result.assembly)
+    assert busco_result.busco_path
+    assert busco_result.busco_score
 
 
 def test_racon_polish():
