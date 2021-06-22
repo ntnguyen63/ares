@@ -7,6 +7,17 @@ from pathlib import Path
 from . import busco_wrapper
 
 
+def create_sorted_aln(
+    *, assembly: Path, r1: str, r2: str, threads: int, out: str
+) -> Path:
+    subprocess.run(
+        f"minimap2 -ax sr {assembly} {r1} {r2} | samtools view -u | samtools sort -@ {threads} > {out}",
+        shell=True,
+    )
+    subprocess.run(f"samtools index {out}", shell=True)
+    return Path(out)
+
+
 class PolishPipeline:
     def __init__(
         self,
@@ -30,43 +41,24 @@ class PolishPipeline:
         self.all_busco_runs: List[busco_wrapper.BuscoResult] = []
 
     def run(self):
-        busco_results: List[busco_wrapper.BuscoResult] = [
+        results: List[busco_wrapper.BuscoResult] = [
             self.polish(draft) for draft in self.drafts if draft.is_file()
         ]
-        best_polish = max(
-            busco_results, key=lambda busco_result: busco_result.busco_score
+        best = max(
+            results,
+            key=lambda result: result.busco_score,
         )
         best_dir = f"{self.root_dir}/best"
         subprocess.run(f"mkdir -p {best_dir}", shell=True)
         subprocess.run(
-            f"cp {best_polish.assembly} {best_dir}/polish.fasta", shell=True
+            f"cp {best.assembly} {best_dir}/polish.fasta", shell=True
         )
+        subprocess.run(f"cp -r {best.busco_path} {best_dir}/", shell=True)
 
-        # create tsv file with results
-        with open(f"{self.root_dir}/results.tsv", "w") as results:
-            headers: List[str] = [
-                "assembly",
-                "lineage",
-                "busco_score",
-                "busco_path",
-                "is_best",
-            ]
-            headers_as_str: str = "\t".join(headers)
-            results.write(f"{headers_as_str}\n")
-            for busco_result in self.all_busco_runs:
-                row = "\t".join(
-                    [
-                        str(busco_result.__dict__[header])
-                        for header in headers
-                        if header != "is_best"
-                    ]
-                )
-                row.append(
-                    True
-                    if busco_result.assembly == best_polish.assembly
-                    else False
-                )
-                results.write(f"{row}\n")
+        # create tsv file from all busco runs
+        busco_wrapper.summarize_busco_runs(
+            outdir=self.root_dir, best=best, busco_results=self.all_busco_runs
+        )
 
     def polish(self, draft: Path):
         polish_dir = f"{self.root_dir}/{draft.stem}"
@@ -176,14 +168,3 @@ class PolishPipeline:
             f"{racon_out}/busco_out",
             self.busco_lineage,
         )
-
-
-def create_sorted_aln(
-    *, assembly: Path, r1: str, r2: str, threads: int, out: str
-) -> Path:
-    subprocess.run(
-        f"minimap2 -ax sr {assembly} {r1} {r2} | samtools view -u | samtools sort -@ {threads} > {out}",
-        shell=True,
-    )
-    subprocess.run(f"samtools index {out}", shell=True)
-    return Path(out)
