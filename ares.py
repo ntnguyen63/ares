@@ -2,7 +2,7 @@ from pathlib import Path
 
 import typer
 
-from ares.polisher import PolishPipeline
+from lib.polisher import PolishPipeline
 
 app = typer.Typer()
 
