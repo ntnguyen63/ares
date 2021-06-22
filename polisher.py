@@ -27,6 +27,8 @@ class PolishPipeline:
         self.threads = threads
         self.busco_lineage = lineage
 
+        self.all_busco_runs: List[busco_wrapper.BuscoResult] = []
+
     def run(self):
         busco_results: List[busco_wrapper.BuscoResult] = [
             self.polish(draft) for draft in self.drafts if draft.is_file()
@@ -51,7 +53,7 @@ class PolishPipeline:
             ]
             headers_as_str: str = "\t".join(headers)
             results.write(f"{headers_as_str}\n")
-            for busco_result in busco_results:
+            for busco_result in self.all_busco_runs:
                 row = "\t".join(
                     [
                         str(busco_result.__dict__[header])
@@ -69,11 +71,12 @@ class PolishPipeline:
     def polish(self, draft: Path):
         polish_dir = f"{self.root_dir}/{draft.stem}"
         Path(polish_dir).mkdir(exist_ok=True)
-        # medaka_polish = self.medaka_polish(polish_dir, draft)
+        medaka_polish = self.medaka_polish(polish_dir, draft)
         return self.pilon_polish(polish_dir, draft)
 
     def medaka_polish(self, polish_dir, draft) -> busco_wrapper.BuscoResult:
-        busco_result = busco_wrapper.initialize_busco_result(draft)
+        busco_result = self.racon_polish(polish_dir, draft)
+        self.all_busco_runs.append(busco_result)
 
         for i in range(self.MEDAKA_ROUNDS):
             out_dir = f"{polish_dir}/medaka/round_{i}"
@@ -90,6 +93,8 @@ class PolishPipeline:
                 polish, f"{out_dir}/busco_out", self.busco_lineage
             )
 
+            self.all_busco_runs.append(new_busco_result)
+
             # just ran first polish or the nth polish has improved assembly
             if busco_wrapper.is_first(
                 busco_result
@@ -100,16 +105,17 @@ class PolishPipeline:
             else:
                 break
 
-            return busco_result
+        return busco_result
 
     def pilon_polish(self, polish_dir, draft) -> busco_wrapper.BuscoResult:
         busco_result = busco_wrapper.initialize_busco_result(draft)
+        self.all_busco_runs.append(busco_result)
 
         for i in range(self.PILON_ROUNDS):
             sorted_out = "sorted.bam"
             pilon_out = f"{polish_dir}/pilon/round_{i}"
             sorted_aln = create_sorted_aln(
-                assembly=busco_result.assembly,
+                assembly=Path(busco_result.assembly),
                 r1=self.r1,
                 r2=self.r2,
                 threads=self.threads,
@@ -131,6 +137,7 @@ class PolishPipeline:
             new_busco_result = busco_wrapper.run_busco(
                 polish, f"{pilon_out}/busco_out", self.busco_lineage
             )
+            self.all_busco_runs.append(new_busco_result)
 
             # just ran busco for the best time
             if busco_wrapper.is_first(
