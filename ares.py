@@ -21,7 +21,7 @@ def ares(
     if not drafts_filtered:
         raise Exception(f"No fasta files in {drafts}")
 
-    ares_out = Path("ares")
+    ares_out = Path("ares_out")
     try:
         ares_out.mkdir()
     except Exception:
