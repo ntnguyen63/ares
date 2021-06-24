@@ -93,16 +93,6 @@ def summarize_busco_runs(
     if not Path(outdir).is_dir():
         raise Exception(f"{outdir} does not exist")
 
-    best_polish = max(
-        busco_results,
-        key=lambda busco_result: busco_result.busco_score,
-    )
-    best_dir = f"{outdir}/best"
-    subprocess.run(f"mkdir -p {best_dir}", shell=True)
-    subprocess.run(
-        f"cp {best_polish.assembly} {best_dir}/polish.fasta", shell=True
-    )
-    subprocess.run(f"cp -r {best_polish.busco_path} {best_dir}/", shell=True)
     # create tsv file with results
     with open(f"{outdir}/results.tsv", "w") as results:
         headers: List[str] = [
