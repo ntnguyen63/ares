@@ -1,10 +1,23 @@
-from typing import List, Optional, Union, Dict
+from typing import List, Optional, Union, Dict, Callable, Protocol
 
 import subprocess
 
 from pathlib import Path
 
 from . import busco_wrapper
+
+
+def get_best_busco_result(results: List[busco_wrapper.BuscoResult]):
+    return max(
+        results,
+        key=lambda result: result.busco_score,
+    )
+
+
+def create_dir_for_best(best: busco_wrapper.BuscoResult, outdir: str):
+    subprocess.run(f"mkdir -p {outdir}", shell=True)
+    subprocess.run(f"cp {best.assembly} {outdir}/polish.fasta", shell=True)
+    subprocess.run(f"cp -r {best.busco_path} {outdir}/", shell=True)
 
 
 def create_sorted_aln(
@@ -18,37 +31,108 @@ def create_sorted_aln(
     return Path(out)
 
 
+class ShortReadPolisher(Protocol):
+    def __call__(
+        self,
+        *,
+        outdir: str,
+        draft: str,
+        r1: str,
+        r2: str,
+        lineage: str,
+        threads: int,
+    ) -> busco_wrapper.BuscoResult:
+        ...
+
+
 def pilon(
     *,
     outdir: str,
-    draft: busco_wrapper.BuscoResult,
+    draft: str,
     r1: str,
     r2: str,
-    busco_lineage: str,
+    lineage: str,
     threads: int,
 ) -> busco_wrapper.BuscoResult:
     sorted_out = "sorted.bam"
     alignment = create_sorted_aln(
-        assembly=Path(draft.assembly),
+        assembly=Path(draft),
         r1=r1,
         r2=r2,
         threads=threads,
         out=sorted_out,
     )
     subprocess.run(
-        f"pilon --genome {draft.assembly} --frags {alignment} --threads {threads} --outdir {outdir}",
-        shell=True,
+        [
+            "pilon",
+            "--fix",
+            "all,amb",
+            "--genome",
+            draft,
+            "--frags",
+            alignment,
+            "--threads",
+            str(threads),
+            "--outdir",
+            outdir,
+        ]
     )
     # some clean up
     subprocess.run(f"rm {sorted_out.split('.')[0]}.*", shell=True)
     polish = f"{outdir}/pilon.fasta"
 
     if not Path(polish).is_file():
-        raise Exception(f"pilon was unable to polish {draft.assembly}")
+        raise Exception(f"pilon was unable to polish {draft}")
 
-    return busco_wrapper.run_busco(
-        polish, f"{outdir}/busco_out", busco_lineage
-    )
+    return busco_wrapper.run_busco(polish, f"{outdir}/busco_out", lineage)
+
+
+class ShortReadPolishRunner:
+    def __init__(
+        self,
+        root_dir: str,
+        draft: str,
+        r1: str,
+        r2: str,
+        threads: int,
+        lineage: str,
+        rounds: int,
+    ):
+        self.root_dir = root_dir
+        self.draft = draft
+        self.r1 = r1
+        self.r2 = r2
+        self.threads = threads
+        self.lineage = lineage
+        self.rounds = rounds
+        self.all_busco_runs: List[busco_wrapper.BuscoResult] = []
+
+    def run(self, polisher: ShortReadPolisher):
+        busco_result = busco_wrapper.initialize_busco_result(self.draft)
+        for i in range(self.rounds):
+            pilon_out = f"{self.root_dir}/pilon/round_{i}"
+
+            new_busco = polisher(
+                outdir=pilon_out,
+                draft=busco_result.assembly,
+                r1=self.r1,
+                r2=self.r2,
+                threads=self.threads,
+                lineage=self.lineage,
+            )
+
+            self.all_busco_runs.append(new_busco)
+
+            if busco_wrapper.is_first(
+                busco_result
+            ) or busco_wrapper.is_improved(
+                new_busco=new_busco, old_busco=busco_result
+            ):
+                busco_result = new_busco
+            else:
+                break
+
+        return busco_result
 
 
 class PolishPipeline:
