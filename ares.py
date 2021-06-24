@@ -68,7 +68,7 @@ def pilon_command(
         raise Exception(f"{draft} does not exist")
 
     try:
-        outdir.mkdir(exist_ok=True)
+        outdir.mkdir()
     except Exception:
         typer.echo(f"{outdir} already exists add --f to force overwrite")
         exit()
