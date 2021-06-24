@@ -18,6 +18,39 @@ def create_sorted_aln(
     return Path(out)
 
 
+def pilon(
+    *,
+    outdir: str,
+    draft: busco_wrapper.BuscoResult,
+    r1: str,
+    r2: str,
+    busco_lineage: str,
+    threads: int,
+) -> busco_wrapper.BuscoResult:
+    sorted_out = "sorted.bam"
+    alignment = create_sorted_aln(
+        assembly=Path(draft.assembly),
+        r1=r1,
+        r2=r2,
+        threads=threads,
+        out=sorted_out,
+    )
+    subprocess.run(
+        f"pilon --genome {draft.assembly} --frags {alignment} --threads {threads} --outdir {outdir}",
+        shell=True,
+    )
+    # some clean up
+    subprocess.run(f"rm {sorted_out.split('.')[0]}.*", shell=True)
+    polish = f"{outdir}/pilon.fasta"
+
+    if not Path(polish).is_file():
+        raise Exception(f"pilon was unable to polish {draft.assembly}")
+
+    return busco_wrapper.run_busco(
+        polish, f"{outdir}/busco_out", busco_lineage
+    )
+
+
 class PolishPipeline:
     def __init__(
         self,
