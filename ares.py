@@ -8,6 +8,7 @@ from lib.polisher import (
     PolishPipeline,
     ShortReadPolishRunner,
     pilon,
+    nextpolish,
 )
 
 from lib.busco_wrapper import summarize_busco_runs
@@ -83,6 +84,41 @@ def pilon_command(
         rounds=rounds,
     )
     best = runner.run(pilon)
+    summarize_busco_runs(
+        outdir=outdir.as_posix(),
+        best=best,
+        busco_results=runner.all_busco_runs,
+    )
+    
+@app.command("nextpolish")
+def nextpolish_command(
+    outdir: Path,
+    draft: Path,
+    r1: str,
+    r2: str,
+    lineage: str,
+    threads: int,
+    rounds: int = 4,
+):
+    if not draft.is_file():
+        raise Exception(f"{draft} does not exist")
+
+    try:
+        outdir.mkdir()
+    except Exception:
+        typer.echo(f"{outdir} already exists add --f to force overwrite")
+        exit()
+
+    runner = ShortReadPolishRunner(
+        root_dir=outdir.as_posix(),
+        draft=draft.as_posix(),
+        r1=r1,
+        r2=r2,
+        lineage=lineage,
+        threads=threads,
+        rounds=rounds,
+    )
+    best = runner.run(nextpolish)
     summarize_busco_runs(
         outdir=outdir.as_posix(),
         best=best,
