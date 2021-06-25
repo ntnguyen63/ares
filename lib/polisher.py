@@ -53,6 +53,7 @@ def pilon(
     r2: str,
     lineage: str,
     threads: int,
+    rounds: int,
 ) -> busco_wrapper.BuscoResult:
     sorted_out = "sorted.bam"
     alignment = create_sorted_aln(
@@ -64,7 +65,7 @@ def pilon(
     )
     subprocess.run(
         [
-            "pilon",
+            "NextPolish",
             "--fix",
             "all,amb",
             "--genome",
@@ -83,6 +84,51 @@ def pilon(
 
     if not Path(polish).is_file():
         raise Exception(f"pilon was unable to polish {draft}")
+
+    return busco_wrapper.run_busco(polish, f"{outdir}/busco_out", lineage)
+    
+    
+def nextpolish(
+    *,
+    outdir: str,
+    draft: str,
+    r1: str,
+    r2: str,
+    lineage: str,
+    threads: int,
+    rounds: int,
+) -> busco_wrapper.BuscoResult:
+    sorted_out = "sorted.bam"
+    alignment = create_sorted_aln(
+        assembly=Path(draft),
+        r1=r1,
+        r2=r2,
+        threads=threads,
+        out=sorted_out,
+    )
+    command = [
+            "nextpolish1.py",
+            "-g",
+            draft,
+            "-t",
+            str(rounds+1), #does not accept 0
+            "-p",
+            str(threads),
+            "-s",
+            "sorted.bam", #it shows  PosixPath('sorted.bam') if using alignment arg?
+            ">",
+            outdir+'/nextpolish.fasta',
+        ]
+    print(command)
+    Path(outdir.split('/')[0]+"/pilon/round_"+str(rounds)).mkdir(parents=True, exist_ok=True)
+    #nextpolish has to be run in a shell to cat output to a file
+    subprocess.run(f"nextpolish1.py -g {draft} -t 1 -p 4 -s sorted.bam > {outdir}/nextpolish.fasta", shell=True)
+    # some clean up
+    subprocess.run(f"rm {sorted_out.split('.')[0]}.*", shell=True)
+    polish = f"{outdir}/nextpolish.fasta"
+
+    if not Path(polish).is_file():
+        raise Exception(f"nextpolish was unable to polish {draft}")
 
     return busco_wrapper.run_busco(polish, f"{outdir}/busco_out", lineage)
 
@@ -119,6 +165,7 @@ class ShortReadPolishRunner:
                 r2=self.r2,
                 threads=self.threads,
                 lineage=self.lineage,
+                rounds=i
             )
 
             self.all_busco_runs.append(new_busco)
@@ -189,7 +236,7 @@ class PolishPipeline:
 
         for i in range(self.MEDAKA_ROUNDS):
             out_dir = f"{polish_dir}/medaka/round_{i}"
-            command = f"medaka_consensus -i {self.long_reads} -d {busco_result.assembly} -o {out_dir} -t {self.threads} -m r941_min_fast_g303"
+            command = f"medaka_consensus -i {self.long_reads} -d {busco_result.assembly} -o {out_dir} -t {self.threads} -m r941_prom_fast_g303"
             subprocess.run(command, shell=True)
 
             polish = f"{out_dir}/consensus.fasta"
