@@ -6,6 +6,8 @@ from pathlib import Path
 
 from . import busco_wrapper
 
+import time
+
 
 def get_best_busco_result(results: List[busco_wrapper.BuscoResult]):
     return max(
@@ -87,6 +89,15 @@ def pilon(
 
     return busco_wrapper.run_busco(polish, f"{outdir}/busco_out", lineage)
     
+def create_bam_bwa(*, genome: str, threads: int, read1: str, read2: str):
+    subprocess.run(["bwa-mem2", "index", genome])
+    subprocess.run( f"bwa-mem2 mem -t {threads} {genome} {read1} {read2}| \
+                    samtools view --threads {threads} -F 0x4 -b -|samtools fixmate -m --threads {threads}  - -| \
+                    samtools sort -m 8g --threads {threads} -|samtools markdup --threads {threads} -r - sorted.bam", shell=True
+                   )
+    subprocess.run(["samtools", "index", "sorted.bam"])
+    subprocess.run(["samtools", "faidx", genome])
+    return
     
 def nextpolish(
     *,
@@ -99,13 +110,7 @@ def nextpolish(
     rounds: int,
 ) -> busco_wrapper.BuscoResult:
     sorted_out = "sorted.bam"
-    alignment = create_sorted_aln(
-        assembly=Path(draft),
-        r1=r1,
-        r2=r2,
-        threads=threads,
-        out=sorted_out,
-    )
+    create_bam_bwa(genome=draft, read1=r1, read2=r2, threads=threads)
     command = [
             "nextpolish1.py",
             "-g",
@@ -125,18 +130,18 @@ def nextpolish(
     subprocess.run(f"nextpolish1.py -g {draft} -t 1 -p {str(threads)} -s sorted.bam > {outdir}/temp1.nextpolish.fasta", shell=True)
     # some clean up
     subprocess.run(f"rm {sorted_out.split('.')[0]}.*", shell=True)
+    subprocess.run(f"rm {draft.split('/')[-1]}.*",shell=True)
     #redo polishing second mode
-    alignment = create_sorted_aln(
-        assembly=outdir+'/temp1.nextpolish.fasta',
-        r1=r1,
-        r2=r2,
+    create_bam_bwa(
+        genome=outdir+'/temp1.nextpolish.fasta',
+        read1=r1,
+        read2=r2,
         threads=threads,
-        out=sorted_out,
     )
-    subprocess.run(f"nextpolish1.py -g {draft} -t 2 -p {str(threads)} -s sorted.bam > {outdir}/nextpolish.fasta", shell=True)
+    subprocess.run(f"nextpolish1.py -g {outdir+'/temp1.nextpolish.fasta'} -t 2 -p {str(threads)} -s sorted.bam > {outdir}/nextpolish.fasta", shell=True)
     # some clean up
     subprocess.run(f"rm {sorted_out.split('.')[0]}.*", shell=True)
-    subprocess.run(f"rm {outdir}/temp1.nextpolish.fasta", shell=True)
+    subprocess.run(f"rm {outdir}/temp1.nextpolish.fasta*", shell=True)
     polish = f"{outdir}/nextpolish.fasta"
 
     if not Path(polish).is_file():
