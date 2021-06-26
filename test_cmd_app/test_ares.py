@@ -23,3 +23,13 @@ def test_pilon():
     assert p.returncode == 0
     assert os.path.exists("pilon_command_test")
     assert os.path.exists("pilon_command_test/best/polish.fasta")
+
+    
+def test_nextpolish():
+    p = subprocess.Popen(
+        "python ares.py nextpolish nextpolish_outdir test_data/drafts/assembly.fasta test_data/r1.fastq test_data/r2.fastq fungi_odb10 4".split()
+    )
+    stdout, stderr = p.communicate()
+    assert p.returncode == 0
+    assert os.path.exists("nextpolish_command_test")
+    assert os.path.exists("pilon_command_test/best/polish.fasta")
