@@ -90,6 +90,21 @@ def test_pilon():
     assert busco_result.assembly
     assert busco_result.busco_score > 30
     assert busco_result.busco_path
+    
+    
+def test_nextpolish():
+    Path("polishing/assembly").mkdir(exist_ok=True, parents=True)
+    busco_result = nextpolish(
+        outdir="polishing/assembly",
+        draft=draft.as_posix(),
+        r1=r1,
+        r2=r2,
+        busco_lineage=busco_lineage,
+        threads=threads,
+    )
+    assert busco_result.assembly
+    assert busco_result.busco_score > 30
+    assert busco_result.busco_path
 
 
 def test_short_read_polish_runner():
