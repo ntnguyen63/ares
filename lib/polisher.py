@@ -122,9 +122,21 @@ def nextpolish(
     print(command)
     Path(outdir.split('/')[0]+"/pilon/round_"+str(rounds)).mkdir(parents=True, exist_ok=True)
     #nextpolish has to be run in a shell to cat output to a file
-    subprocess.run(f"nextpolish1.py -g {draft} -t 1 -p 4 -s sorted.bam > {outdir}/nextpolish.fasta", shell=True)
+    subprocess.run(f"nextpolish1.py -g {draft} -t 1 -p {str(threads)} -s sorted.bam > {outdir}/temp1.nextpolish.fasta", shell=True)
     # some clean up
     subprocess.run(f"rm {sorted_out.split('.')[0]}.*", shell=True)
+    #redo polishing second mode
+    alignment = create_sorted_aln(
+        assembly=outdir+'/temp1.nextpolish.fasta',
+        r1=r1,
+        r2=r2,
+        threads=threads,
+        out=sorted_out,
+    )
+    subprocess.run(f"nextpolish1.py -g {draft} -t 2 -p {str(threads)} -s sorted.bam > {outdir}/nextpolish.fasta", shell=True)
+    # some clean up
+    subprocess.run(f"rm {sorted_out.split('.')[0]}.*", shell=True)
+    subprocess.run(f"rm {outdir}/temp1.nextpolish.fasta", shell=True)
     polish = f"{outdir}/nextpolish.fasta"
 
     if not Path(polish).is_file():
